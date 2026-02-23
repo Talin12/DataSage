@@ -1,10 +1,11 @@
 import styled, { keyframes } from 'styled-components'
 import {
-  BarChart, Bar,
+  BarChart, Bar, Cell as BarCell,
   LineChart, Line,
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer
+  Tooltip, Legend, ResponsiveContainer,
+  LabelList
 } from 'recharts'
 
 const fadeUp = keyframes`
@@ -33,7 +34,39 @@ const Meta = styled.div`
   font-size: 11px;
   color: #3a5060;
   letter-spacing: 0.08em;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+`
+
+const StatsRow = styled.div`
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+`
+
+const StatChip = styled.div`
+  background: rgba(100, 255, 218, 0.05);
+  border: 1px solid rgba(100, 255, 218, 0.12);
+  border-radius: 6px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`
+
+const StatLabel = styled.div`
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #4a6070;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+`
+
+const StatValue = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #64ffda;
+  letter-spacing: -0.02em;
 `
 
 const TruncNote = styled.div`
@@ -55,6 +88,7 @@ const TooltipBox = styled.div`
 `
 
 const COLORS = ['#64ffda', '#4a9eff', '#ff6b9d', '#ffb432', '#a78bfa', '#34d399', '#f97316', '#e879f9']
+
 const AXIS_STYLE = {
   tick: { fill: '#4a6070', fontFamily: 'Space Mono', fontSize: 11 },
   axisLine: { stroke: '#1e2a3a' },
@@ -67,62 +101,130 @@ function CustomTooltip({ active, payload, label }) {
     <TooltipBox>
       <div style={{ color: '#64ffda', marginBottom: 4 }}>{label}</div>
       {payload.map((p, i) => (
-        <div key={i}>{p.name}: <strong>{p.value}</strong></div>
+        <div key={i}>{p.name}: <strong>{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</strong></div>
       ))}
     </TooltipBox>
   )
 }
 
-function normalizeData(block) {
-  const raw = Array.isArray(block.data) && block.data.length ? block.data : (
-    ['Jan','Feb','Mar','Apr','May','Jun'].map(name => ({
-      [block.x_axis || 'category']: name,
-      [block.y_axis || 'value']: Math.floor(Math.random() * 800 + 200),
-    }))
+function PieCustomTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0]
+  return (
+    <TooltipBox>
+      <div style={{ color: '#64ffda', marginBottom: 4 }}>{p.name}</div>
+      <div>Count: <strong>{p.value.toLocaleString()}</strong></div>
+      <div>Share: <strong>{p.payload.percent}</strong></div>
+    </TooltipBox>
   )
-  return raw.slice(0, 8)
+}
+
+function renderPieLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  return (
+    <text x={x} y={y} fill="#0a0a0f" textAnchor="middle" dominantBaseline="central"
+      fontFamily="Space Mono" fontSize={11} fontWeight={700}>
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
+
+function computeStats(data, y) {
+  const vals = data.map(d => Number(d[y])).filter(v => !isNaN(v))
+  if (!vals.length) return null
+  return {
+    total: vals.reduce((a, b) => a + b, 0),
+    max: Math.max(...vals),
+    min: Math.min(...vals),
+    avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+  }
 }
 
 function DynamicChart({ block }) {
-  const rawLength = Array.isArray(block.data) ? block.data.length : 0
-  const data = normalizeData(block)
-  const isTruncated = rawLength > 8
-  const x = block.x_axis || 'category'
-  const y = block.y_axis || 'value'
-  const margin = { top: 8, right: 16, left: 0, bottom: 0 }
+  const data = Array.isArray(block.data) ? block.data : []
+  const rawLength = data.length
+  const isTruncated = rawLength > 50
+  const chartData = data.slice(0, 50)
+  const x = block.x_axis
+  const y = block.y_axis
+  const margin = { top: 16, right: 16, left: 0, bottom: 0 }
+
+  // Enrich pie data with percent string for tooltip
+  const total = chartData.reduce((sum, d) => sum + Number(d[y] || 0), 0)
+  const enrichedPieData = chartData.map(d => ({
+    ...d,
+    percent: `${((Number(d[y]) / total) * 100).toFixed(1)}%`
+  }))
+
+  const stats = computeStats(chartData, y)
+
+  if (!data.length) {
+    return (
+      <Wrapper>
+        <Title>{block.title}</Title>
+        <p style={{ color: '#ff6b6b', fontSize: 12, fontFamily: 'Space Mono' }}>⚠ No data returned from SQL query.</p>
+      </Wrapper>
+    )
+  }
 
   let chart = null
 
   if (block.chart_type === 'bar') {
     chart = (
-      <BarChart data={data} margin={margin}>
+      <BarChart data={chartData} margin={margin}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1a2030" vertical={false} />
         <XAxis dataKey={x} {...AXIS_STYLE} />
-        <YAxis {...AXIS_STYLE} />
+        <YAxis {...AXIS_STYLE} tickFormatter={v => v.toLocaleString()} />
         <Tooltip content={<CustomTooltip />} />
-        <Bar dataKey={y} fill="#64ffda" radius={[3, 3, 0, 0]} />
+        <Bar dataKey={y} radius={[3, 3, 0, 0]}>
+          {chartData.map((_, i) => (
+            <BarCell key={i} fill={COLORS[i % COLORS.length]} />
+          ))}
+          <LabelList dataKey={y} position="top"
+            style={{ fill: '#4a6070', fontFamily: 'Space Mono', fontSize: 10 }}
+            formatter={v => v.toLocaleString()} />
+        </Bar>
       </BarChart>
     )
   } else if (block.chart_type === 'line') {
     chart = (
-      <LineChart data={data} margin={margin}>
+      <LineChart data={chartData} margin={margin}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1a2030" vertical={false} />
         <XAxis dataKey={x} {...AXIS_STYLE} />
-        <YAxis {...AXIS_STYLE} />
+        <YAxis {...AXIS_STYLE} tickFormatter={v => v.toLocaleString()} />
         <Tooltip content={<CustomTooltip />} />
         <Line type="monotone" dataKey={y} stroke="#64ffda" strokeWidth={2}
-          dot={{ fill: '#64ffda', r: 4 }} activeDot={{ r: 6 }} />
+          dot={{ fill: '#64ffda', r: 4 }} activeDot={{ r: 6 }}>
+          <LabelList dataKey={y} position="top"
+            style={{ fill: '#4a6070', fontFamily: 'Space Mono', fontSize: 10 }}
+            formatter={v => v.toLocaleString()} />
+        </Line>
       </LineChart>
     )
   } else if (block.chart_type === 'pie') {
     chart = (
       <PieChart>
-        <Pie data={data} dataKey={y} nameKey={x} cx="50%" cy="50%"
-          outerRadius={110} paddingAngle={3}>
-          {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+        <Pie
+          data={enrichedPieData}
+          dataKey={y}
+          nameKey={x}
+          cx="50%" cy="50%"
+          outerRadius={120}
+          paddingAngle={2}
+          labelLine={false}
+          label={renderPieLabel}
+        >
+          {enrichedPieData.map((_, i) => (
+            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+          ))}
         </Pie>
-        <Tooltip content={<CustomTooltip />} />
-        <Legend wrapperStyle={{ fontFamily: 'Space Mono', fontSize: 11, color: '#4a6070' }} />
+        <Tooltip content={<PieCustomTooltip />} />
+        <Legend
+          formatter={(value) => <span style={{ color: '#a0b4c0', fontFamily: 'Space Mono', fontSize: 11 }}>{value}</span>}
+        />
       </PieChart>
     )
   }
@@ -133,13 +235,36 @@ function DynamicChart({ block }) {
     <Wrapper>
       <Title>{block.title}</Title>
       <Meta>
-        {[block.chart_type, x && `x: ${x}`, y && `y: ${y}`, block.aggregation]
+        {[block.chart_type, x && `x: ${x}`, y && `y: ${y}`]
           .filter(Boolean).join('  ·  ')}
       </Meta>
-      {isTruncated && (
-        <TruncNote>⚠ Showing top 8 of {rawLength} data points</TruncNote>
+
+      {stats && (
+        <StatsRow>
+          <StatChip>
+            <StatLabel>Total</StatLabel>
+            <StatValue>{stats.total.toLocaleString()}</StatValue>
+          </StatChip>
+          <StatChip>
+            <StatLabel>Max</StatLabel>
+            <StatValue>{stats.max.toLocaleString()}</StatValue>
+          </StatChip>
+          <StatChip>
+            <StatLabel>Min</StatLabel>
+            <StatValue>{stats.min.toLocaleString()}</StatValue>
+          </StatChip>
+          <StatChip>
+            <StatLabel>Avg</StatLabel>
+            <StatValue>{Math.round(stats.avg).toLocaleString()}</StatValue>
+          </StatChip>
+        </StatsRow>
       )}
-      <ResponsiveContainer width="100%" height={280}>
+
+      {isTruncated && (
+        <TruncNote>⚠ Showing top 50 of {rawLength} data points</TruncNote>
+      )}
+
+      <ResponsiveContainer width="100%" height={300}>
         {chart}
       </ResponsiveContainer>
     </Wrapper>
