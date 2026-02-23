@@ -1,9 +1,10 @@
 import os
+import re
 import requests
 import json
 
 
-HF_API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+HF_API_URL = "https://router.huggingface.co/v1/chat/completions"
 
 
 def analyze_prompt_with_llm(prompt, schema, sample_rows):
@@ -12,7 +13,6 @@ def analyze_prompt_with_llm(prompt, schema, sample_rows):
     and returns raw string output.
     """
 
-    # 🔐 Load API key from environment
     api_key = os.getenv("HUGGINGFACE_API_KEY")
 
     if not api_key:
@@ -23,9 +23,7 @@ def analyze_prompt_with_llm(prompt, schema, sample_rows):
         "Content-Type": "application/json",
     }
 
-    # 🧠 STRICT SYSTEM PROMPT
-    system_prompt = f"""
-You are a data visualization assistant.
+    system_message = f"""You are a data visualization assistant.
 
 Your job is to analyze structured dataset information and convert
 natural language requests into a structured JSON visualization plan.
@@ -35,9 +33,6 @@ DATASET SCHEMA:
 
 SAMPLE ROWS:
 {json.dumps(sample_rows, indent=2)}
-
-USER REQUEST:
-"{prompt}"
 
 OUTPUT REQUIREMENTS:
 - Return ONLY raw JSON.
@@ -61,15 +56,16 @@ OUTPUT REQUIREMENTS:
 }}
 
 If the request cannot be fulfilled using the schema provided,
-return a valid JSON response with warnings explaining why.
-"""
+return a valid JSON response with warnings explaining why."""
 
     payload = {
-        "inputs": system_prompt,
-        "parameters": {
-            "temperature": 0.2,
-            "max_new_tokens": 500,
-        }
+        "model": "meta-llama/Llama-3.1-8B-Instruct:cerebras",
+        "messages": [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 500,
     }
 
     response = requests.post(
@@ -84,9 +80,4 @@ return a valid JSON response with warnings explaining why.
 
     result = response.json()
 
-    # HF returns list format usually
-    if isinstance(result, list) and "generated_text" in result[0]:
-        return result[0]["generated_text"]
-
-    # fallback safety
-    return str(result)
+    return result["choices"][0]["message"]["content"].strip()
