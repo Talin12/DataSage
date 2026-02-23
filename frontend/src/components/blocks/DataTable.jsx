@@ -22,6 +22,14 @@ const Title = styled.h3`
   margin-bottom: 18px;
 `
 
+const RowCount = styled.div`
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #ffb432;
+  margin-bottom: 14px;
+  letter-spacing: 0.08em;
+`
+
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -43,7 +51,6 @@ const Td = styled.td`
   color: #a0b4c0;
   padding: 10px 14px;
   border-bottom: 1px solid #111827;
-
   tr:last-child & { border-bottom: none; }
 `
 
@@ -55,6 +62,8 @@ const Tr = styled.tr`
 function DataTable({ block }) {
   const columns = block.columns || []
   const rows = block.rows || []
+  const truncated = rows.slice(0, 500)
+  const isTruncated = rows.length > 500
 
   if (!columns.length && !rows.length) {
     return (
@@ -65,18 +74,20 @@ function DataTable({ block }) {
     )
   }
 
-  // Auto-derive columns from row keys if not provided
-  const cols = columns.length ? columns : Object.keys(rows[0] || {})
+  const cols = columns.length ? columns : Object.keys(truncated[0] || {})
 
   return (
     <Wrapper>
       <Title>{block.title}</Title>
+      {isTruncated && (
+        <RowCount>⚠ Showing first 500 of {rows.length} rows</RowCount>
+      )}
       <Table>
         <thead>
           <tr>{cols.map(col => <Th key={col}>{col}</Th>)}</tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {truncated.map((row, i) => (
             <Tr key={i}>
               {cols.map(col => <Td key={col}>{row[col] ?? '—'}</Td>)}
             </Tr>

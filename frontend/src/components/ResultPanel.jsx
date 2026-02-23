@@ -1,5 +1,6 @@
 import styled, { keyframes } from 'styled-components'
 import BlockRenderer from './BlockRenderer'
+import ErrorBoundary from './ErrorBoundary'
 
 const slideUp = keyframes`
   from { opacity: 0; transform: translateY(16px); }
@@ -43,7 +44,9 @@ function ResultPanel({ data }) {
       )}
 
       {data.blocks.map((block, i) => (
-        <BlockRenderer key={i} block={block} />
+        <ErrorBoundary key={i}>
+          <BlockRenderer block={block} />
+        </ErrorBoundary>
       ))}
     </Panel>
   )

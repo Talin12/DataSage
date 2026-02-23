@@ -36,6 +36,14 @@ const Meta = styled.div`
   margin-bottom: 24px;
 `
 
+const TruncNote = styled.div`
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #ffb432;
+  margin-bottom: 14px;
+  letter-spacing: 0.08em;
+`
+
 const TooltipBox = styled.div`
   background: #0f0f1a;
   border: 1px solid #1e2a3a;
@@ -46,8 +54,7 @@ const TooltipBox = styled.div`
   color: #e2e8f0;
 `
 
-const COLORS = ['#64ffda', '#4a9eff', '#ff6b9d', '#ffb432', '#a78bfa', '#34d399']
-
+const COLORS = ['#64ffda', '#4a9eff', '#ff6b9d', '#ffb432', '#a78bfa', '#34d399', '#f97316', '#e879f9']
 const AXIS_STYLE = {
   tick: { fill: '#4a6070', fontFamily: 'Space Mono', fontSize: 11 },
   axisLine: { stroke: '#1e2a3a' },
@@ -66,20 +73,20 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-// Normalize data so recharts always gets [{ x_key: ..., y_key: ... }]
 function normalizeData(block) {
-  if (Array.isArray(block.data) && block.data.length) return block.data
-
-  // Fallback: generate placeholder so chart isn't empty
-  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-  return labels.map(name => ({
-    [block.x_axis || 'category']: name,
-    [block.y_axis || 'value']: Math.floor(Math.random() * 800 + 200),
-  }))
+  const raw = Array.isArray(block.data) && block.data.length ? block.data : (
+    ['Jan','Feb','Mar','Apr','May','Jun'].map(name => ({
+      [block.x_axis || 'category']: name,
+      [block.y_axis || 'value']: Math.floor(Math.random() * 800 + 200),
+    }))
+  )
+  return raw.slice(0, 8)
 }
 
 function DynamicChart({ block }) {
+  const rawLength = Array.isArray(block.data) ? block.data.length : 0
   const data = normalizeData(block)
+  const isTruncated = rawLength > 8
   const x = block.x_axis || 'category'
   const y = block.y_axis || 'value'
   const margin = { top: 8, right: 16, left: 0, bottom: 0 }
@@ -129,6 +136,9 @@ function DynamicChart({ block }) {
         {[block.chart_type, x && `x: ${x}`, y && `y: ${y}`, block.aggregation]
           .filter(Boolean).join('  ·  ')}
       </Meta>
+      {isTruncated && (
+        <TruncNote>⚠ Showing top 8 of {rawLength} data points</TruncNote>
+      )}
       <ResponsiveContainer width="100%" height={280}>
         {chart}
       </ResponsiveContainer>
