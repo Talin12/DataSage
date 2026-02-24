@@ -59,13 +59,20 @@ const Tr = styled.tr`
   &:hover { background: rgba(100, 255, 218, 0.03); }
 `
 
+function formatCell(value) {
+  if (typeof value === 'number' && !Number.isInteger(value)) {
+    return parseFloat(value.toFixed(2))
+  }
+  return value ?? '—'
+}
+
 function DataTable({ block }) {
   const columns = block.columns || []
-  const rows = block.rows || []
-  const truncated = rows.slice(0, 500)
-  const isTruncated = rows.length > 500
+  const data = block.data || []
+  const truncated = data.slice(0, 500)
+  const isTruncated = data.length > 500
 
-  if (!columns.length && !rows.length) {
+  if (!columns.length && !data.length) {
     return (
       <Wrapper>
         <Title>{block.title}</Title>
@@ -80,7 +87,7 @@ function DataTable({ block }) {
     <Wrapper>
       <Title>{block.title}</Title>
       {isTruncated && (
-        <RowCount>⚠ Showing first 500 of {rows.length} rows</RowCount>
+        <RowCount>⚠ Showing top 500 of {data.length} rows</RowCount>
       )}
       <Table>
         <thead>
@@ -89,7 +96,7 @@ function DataTable({ block }) {
         <tbody>
           {truncated.map((row, i) => (
             <Tr key={i}>
-              {cols.map(col => <Td key={col}>{row[col] ?? '—'}</Td>)}
+              {cols.map(col => <Td key={col}>{formatCell(row[col])}</Td>)}
             </Tr>
           ))}
         </tbody>

@@ -42,6 +42,32 @@ DATABASE RULES:
 5. NEVER cast values to JSON (no ::json). Only cast to ::numeric, ::float, or ::int.
 6. Always use simple column aliases (e.g. AS region, AS total_revenue) with no spaces or special characters.
 
+CRITICAL — JSONB COLUMN ACCESS:
+- The table `analytics_record` has NO direct columns for your dataset fields.
+- Fields like `page_views`, `revenue`, `region`, `date`, etc. DO NOT exist as table columns.
+- They ONLY exist inside the `row_data` JSONB column.
+- You MUST ALWAYS access them via `row_data->>'field_name'`.
+- This rule applies EVERYWHERE: SELECT, WHERE, GROUP BY, ORDER BY — no exceptions.
+- Referencing a dataset field directly (e.g. `page_views`, `revenue`) WILL cause a crash.
+
+BAD SQL vs GOOD SQL:
+
+  BAD — direct column reference (WILL CRASH):
+    SELECT region, SUM(page_views) FROM analytics_record
+    WHERE dataset_id = %s AND page_views > 100
+    GROUP BY region
+    ORDER BY page_views DESC
+
+  GOOD — correct JSONB access:
+    SELECT
+      row_data->>'region' AS region,
+      SUM((row_data->>'page_views')::numeric) AS total_page_views
+    FROM analytics_record
+    WHERE dataset_id = %s
+      AND (row_data->>'page_views')::numeric > 100
+    GROUP BY row_data->>'region'
+    ORDER BY total_page_views DESC
+
 BLOCK TYPES AND THEIR REQUIRED FIELDS:
 
 1. KPI block — a single scalar value (e.g. total revenue, record count):

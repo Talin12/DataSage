@@ -17,6 +17,12 @@ const Card = styled.div`
   gap: 10px;
 `
 
+const ErrorCard = styled(Card)`
+  border-top-color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.25);
+  background: rgba(255, 107, 107, 0.04);
+`
+
 const Title = styled.div`
   font-family: 'Space Mono', monospace;
   font-size: 11px;
@@ -33,11 +39,38 @@ const Value = styled.div`
   line-height: 1;
 `
 
-function KPICard({ title, value }) {
+const ErrorBadge = styled.div`
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #ff6b6b;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+`
+
+const ErrorMessage = styled.div`
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #a05050;
+  line-height: 1.6;
+  word-break: break-word;
+`
+
+function KPICard({ block }) {
+  if (block.error) {
+    return (
+      <ErrorCard>
+        <Title>{block.title}</Title>
+        <ErrorBadge>⚠ Block Error</ErrorBadge>
+        <ErrorMessage>{block.error}</ErrorMessage>
+      </ErrorCard>
+    )
+  }
+
   return (
     <Card>
-      <Title>{title}</Title>
-      <Value>{value ?? '—'}</Value>
+      <Title>{block.title}</Title>
+      <Value>{block.value ?? '—'}</Value>
     </Card>
   )
 }
