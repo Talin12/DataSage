@@ -152,7 +152,6 @@ function DynamicChart({ block }) {
   const y = block.y_axis
   const margin = { top: 16, right: 16, left: 0, bottom: 0 }
 
-  // Enrich pie data with percent string for tooltip
   const total = chartData.reduce((sum, d) => sum + Number(d[y] || 0), 0)
   const enrichedPieData = chartData.map(d => ({
     ...d,
