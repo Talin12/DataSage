@@ -14,7 +14,10 @@ if not User.objects.filter(username='admin').exists():
     User.objects.create_superuser('admin', 'talindaga692@gmail.com', 'admin')
     print('Superuser created.')
 else:
-    print('Superuser already exists, skipping.')
+    u = User.objects.get(username='admin')
+    u.set_password('admin')
+    u.save()
+    print('Superuser password reset.')
 "
 
 python manage.py seed_sales_data
