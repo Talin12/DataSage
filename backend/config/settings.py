@@ -12,6 +12,9 @@ DEBUG = os.getenv('DEBUG', "False") == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.railway.app').split(',')
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -96,6 +99,10 @@ STORAGES = {
 
 FRONTEND_URL = os.getenv('FRONTEND_URL')
 if FRONTEND_URL:
-    CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
+    CORS_ALLOWED_ORIGINS = [
+        FRONTEND_URL,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ]
 else:
     CORS_ALLOW_ALL_ORIGINS = True
