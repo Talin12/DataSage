@@ -89,6 +89,8 @@ const TooltipBox = styled.div`
 
 const COLORS = ['#64ffda', '#4a9eff', '#ff6b9d', '#ffb432', '#a78bfa', '#34d399', '#f97316', '#e879f9']
 
+const MAX_SERIES = 8
+
 const AXIS_STYLE = {
   tick: { fill: '#4a6070', fontFamily: 'Space Mono', fontSize: 11 },
   axisLine: { stroke: '#1e2a3a' },
@@ -146,8 +148,14 @@ function computeStats(data, y) {
 function DynamicChart({ block }) {
   const data = Array.isArray(block.data) ? block.data : []
   const rawLength = data.length
-  const isTruncated = rawLength > 50
-  const chartData = data.slice(0, 50)
+
+  // Task 4: enforce maximum of 8 series before any further slicing
+  const seriesLimited = data.slice(0, MAX_SERIES)
+  const isSeriesTruncated = rawLength > MAX_SERIES
+
+  const isTruncated = seriesLimited.length > 50
+  const chartData = seriesLimited.slice(0, 50)
+
   const x = block.x_axis
   const y = block.y_axis
   const margin = { top: 16, right: 16, left: 0, bottom: 0 }
@@ -259,8 +267,12 @@ function DynamicChart({ block }) {
         </StatsRow>
       )}
 
+      {isSeriesTruncated && (
+        <TruncNote>⚠ Showing top {MAX_SERIES} of {rawLength} series</TruncNote>
+      )}
+
       {isTruncated && (
-        <TruncNote>⚠ Showing top 50 of {rawLength} data points</TruncNote>
+        <TruncNote>⚠ Showing top 50 of {seriesLimited.length} data points</TruncNote>
       )}
 
       <ResponsiveContainer width="100%" height={300}>

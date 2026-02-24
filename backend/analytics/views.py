@@ -1,3 +1,4 @@
+# backend/analytics/views.py
 import json
 import re
 import decimal
@@ -8,9 +9,11 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db import connection
 
-from .serializers import DatasetSerializer
-from .models import Dataset, Record
+from .serializers import DatasetSerializer, SavedVisualizationSerializer
+from .models import Dataset, Record, SavedVisualization
 from .llm_service import analyze_prompt_with_llm
+
+ROW_LIMIT = 500
 
 
 def serialize_row(columns, row):
@@ -21,6 +24,31 @@ def serialize_row(columns, row):
         else:
             result[columns[i]] = v
     return result
+
+
+def enforce_row_limit(sql):
+    sql_stripped = sql.rstrip().rstrip(";").rstrip()
+    upper = sql_stripped.upper()
+    if "LIMIT" not in upper:
+        return f"{sql_stripped} LIMIT {ROW_LIMIT}"
+    return sql_stripped
+
+
+def execute_block_sql(raw_sql, dataset_id):
+    if not raw_sql.upper().startswith("SELECT"):
+        return None, None, "Query rejected: only SELECT statements are permitted."
+
+    secured_sql = enforce_row_limit(raw_sql)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(secured_sql, [dataset_id])
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchmany(ROW_LIMIT)
+            data = [serialize_row(columns, row) for row in rows]
+        return columns, data, None
+    except Exception as e:
+        return None, None, f"SQL execution error: {str(e)}"
 
 
 @api_view(['GET'])
@@ -65,40 +93,16 @@ def ask_dataset(request):
         )
 
         try:
-            parsed_output = json.loads(raw_llm_output)
+            parsed_blocks = json.loads(raw_llm_output)
         except json.JSONDecodeError:
             cleaned = re.sub(r"```json|```", "", raw_llm_output).strip()
-            parsed_output = json.loads(cleaned)
+            parsed_blocks = json.loads(cleaned)
 
-        raw_sql = parsed_output.get("sql", "").strip()
-        if not raw_sql.upper().startswith("SELECT"):
-            raise ValueError("Only SELECT queries are allowed.")
-
-        with connection.cursor() as cursor:
-            cursor.execute(raw_sql, [dataset_id])
-            columns = [col[0] for col in cursor.description]
-            real_data = [serialize_row(columns, row) for row in cursor.fetchall()]
-
-        chart_type = parsed_output.get("chart_type")
-        block_type = "chart" if chart_type in ["bar", "line", "pie"] else "table"
-
-        final_response = {
-            "type": "dashboard_response",
-            "warnings": [],
-            "blocks": [
-                {
-                    "type": block_type,
-                    "title": parsed_output.get("title", "Query Result"),
-                    "chart_type": chart_type,
-                    "x_axis": parsed_output.get("x_axis"),
-                    "y_axis": parsed_output.get("y_axis"),
-                    "data": real_data,
-                    "columns": columns,
-                }
-            ]
-        }
-
-        return Response(final_response, status=status.HTTP_200_OK)
+        if not isinstance(parsed_blocks, list):
+            return Response(
+                {"error": "AI returned an unexpected format (expected a JSON array of blocks)."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     except json.JSONDecodeError:
         return Response(
@@ -110,3 +114,92 @@ def ask_dataset(request):
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+    assembled_blocks = []
+    warnings = []
+
+    for i, block in enumerate(parsed_blocks):
+        render_type = block.get("render")
+        title = block.get("title", f"Block {i + 1}")
+        raw_sql = (block.get("sql") or "").strip()
+
+        # --- KPI block ---
+        if render_type == "kpi":
+            columns, data, warning = execute_block_sql(raw_sql, dataset_id)
+            if warning:
+                warnings.append(f"Block '{title}': {warning}")
+                assembled_blocks.append({
+                    "render": "kpi",
+                    "title": title,
+                    "error": warning,
+                })
+            else:
+                # KPI: first column of first row is the value
+                value = data[0][columns[0]] if data else None
+                assembled_blocks.append({
+                    "render": "kpi",
+                    "title": title,
+                    "value": value,
+                    "value_label": columns[0] if columns else None,
+                })
+
+        # --- Chart block ---
+        elif render_type == "chart":
+            columns, data, warning = execute_block_sql(raw_sql, dataset_id)
+            if warning:
+                warnings.append(f"Block '{title}': {warning}")
+                assembled_blocks.append({
+                    "render": "chart",
+                    "title": title,
+                    "error": warning,
+                })
+            else:
+                assembled_blocks.append({
+                    "render": "chart",
+                    "title": title,
+                    "chart_type": block.get("chart_type"),
+                    "x_axis": block.get("x_axis"),
+                    "y_axis": block.get("y_axis"),
+                    "data": data,
+                    "columns": columns,
+                })
+
+        # --- Table block ---
+        elif render_type == "table":
+            columns, data, warning = execute_block_sql(raw_sql, dataset_id)
+            if warning:
+                warnings.append(f"Block '{title}': {warning}")
+                assembled_blocks.append({
+                    "render": "table",
+                    "title": title,
+                    "error": warning,
+                })
+            else:
+                assembled_blocks.append({
+                    "render": "table",
+                    "title": title,
+                    "data": data,
+                    "columns": columns,
+                })
+
+        # --- Unknown render type ---
+        else:
+            warning = f"Block '{title}': unknown render type '{render_type}' — skipped."
+            warnings.append(warning)
+
+    final_response = {
+        "type": "dashboard_response",
+        "warnings": warnings,
+        "blocks": assembled_blocks,
+    }
+
+    return Response(final_response, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def save_visualization(request):
+    serializer = SavedVisualizationSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
