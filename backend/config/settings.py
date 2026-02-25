@@ -1,4 +1,3 @@
-# backend/config/settings.py
 import os
 import dj_database_url
 from pathlib import Path
@@ -102,6 +101,7 @@ if FRONTEND_URL:
     CORS_ALLOWED_ORIGINS = [
         FRONTEND_URL,
         "http://localhost:5173",
+        "http://localhost:4173",
         "http://127.0.0.1:5173"
     ]
 else:

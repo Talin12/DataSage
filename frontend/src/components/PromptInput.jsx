@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import styled, { keyframes } from 'styled-components'
+import styled, { keyframes, css } from 'styled-components'
 
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(-6px); }
@@ -9,6 +9,11 @@ const fadeIn = keyframes`
 const pulse = keyframes`
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
+`
+
+const pillFadeIn = keyframes`
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 `
 
 const Wrapper = styled.div`
@@ -24,6 +29,38 @@ const Label = styled.label`
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: #64ffda;
+`
+
+const PillsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+`
+
+const Pill = styled.button`
+  background: rgba(100, 255, 218, 0.05);
+  border: 1px solid rgba(100, 255, 218, 0.2);
+  border-radius: 20px;
+  color: #64ffda;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  animation: ${pillFadeIn} 0.3s ease both;
+  animation-delay: ${p => p.$index * 0.05}s;
+
+  &:hover {
+    background: rgba(100, 255, 218, 0.12);
+    border-color: rgba(100, 255, 218, 0.5);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `
 
 const Textarea = styled.textarea`
@@ -62,7 +99,7 @@ const Button = styled.button`
   padding: 12px 28px;
   text-transform: uppercase;
   transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-  animation: ${p => p.$loading ? pulse : 'none'} 1.5s ease infinite;
+  ${p => p.$loading && css`animation: ${pulse} 1.5s ease infinite;`}
 
   &:hover:not(:disabled) {
     background: #4dd9b8;
@@ -74,12 +111,28 @@ const Button = styled.button`
   &:active:not(:disabled) { transform: translateY(0); }
 `
 
-function PromptInput({ onSubmit, isLoading }) {
+function PromptInput({ onSubmit, isLoading, sampleQuestions = [] }) {
   const [text, setText] = useState('')
 
   return (
     <Wrapper>
       <Label htmlFor="prompt-input">Natural Language Query</Label>
+
+      {sampleQuestions.length > 0 && (
+        <PillsRow>
+          {sampleQuestions.map((q, i) => (
+            <Pill
+              key={q}
+              $index={i}
+              onClick={() => setText(q)}
+              disabled={isLoading}
+            >
+              {q}
+            </Pill>
+          ))}
+        </PillsRow>
+      )}
+
       <Textarea
         id="prompt-input"
         rows={4}
