@@ -1,20 +1,9 @@
 import { useState } from 'react'
-import styled, { keyframes, createGlobalStyle } from 'styled-components'
+import styled, { keyframes } from 'styled-components'
 import DatasetSelector from '../components/DatasetSelector'
 import PromptInput from '../components/PromptInput'
 import ResultPanel from '../components/ResultPanel'
 import api from '../services/api'
-
-const GlobalStyle = createGlobalStyle`
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #0a0a0f;
-    color: #e2e8f0;
-    font-family: 'Syne', sans-serif;
-    min-height: 100vh;
-  }
-`
 
 const fadeIn = keyframes`
   from { opacity: 0; }
@@ -114,26 +103,23 @@ function Dashboard() {
   }
 
   return (
-    <>
-      <GlobalStyle />
-      <Page>
-        <Header>
-          <Eyebrow>▸ AI Analytics</Eyebrow>
-          <Title>Data Dashboard</Title>
-          <Subtitle>Select a dataset, describe what you want to see,<br />and let the model do the rest.</Subtitle>
-        </Header>
+    <Page>
+      <Header>
+        <Eyebrow>▸ AI Analytics</Eyebrow>
+        <Title>Data Dashboard</Title>
+        <Subtitle>Select a dataset, describe what you want to see,<br />and let the model do the rest.</Subtitle>
+      </Header>
 
-        <Divider />
+      <Divider />
 
-        <Card>
-          <DatasetSelector onSelect={setSelectedDatasetId} />
-          <PromptInput onSubmit={handleSubmit} isLoading={isLoading} />
-          {error && <ErrorBanner>⚠ {error}</ErrorBanner>}
-        </Card>
+      <Card>
+        <DatasetSelector onSelect={setSelectedDatasetId} />
+        <PromptInput onSubmit={handleSubmit} isLoading={isLoading} />
+        {error && <ErrorBanner>⚠ {error}</ErrorBanner>}
+      </Card>
 
-        <ResultPanel data={dashboardData} />
-      </Page>
-    </>
+      <ResultPanel data={dashboardData} />
+    </Page>
   )
 }
 

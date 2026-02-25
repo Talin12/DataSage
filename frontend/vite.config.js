@@ -14,4 +14,9 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    alias: {
+      'styled-components': 'styled-components/dist/styled-components.browser.cjs.js',
+    },
+  },
 })
