@@ -6,19 +6,19 @@ import ResultPanel from '../components/ResultPanel'
 import api from '../services/api'
 
 const SAMPLE_QUESTIONS = {
-  1: [
+  34: [
     'Show me a bar chart of sales by region',
     'What were the top 5 products by revenue?',
     'Line chart of monthly sales trends',
     'Which region had the lowest Q4 performance?',
   ],
-  2: [
+  35: [
     'Show me daily website traffic as a line chart',
     'What are the top 5 traffic sources?',
     'Bar chart of bounce rate by page',
     'Which pages had the highest conversion rate?',
   ],
-  3: [
+  36: [
     'Show me headcount by department as a bar chart',
     'What is the average salary by role?',
     'Pie chart of employee tenure distribution',
@@ -123,6 +123,9 @@ function Dashboard() {
     }
   }
 
+  console.log('selectedDatasetId:', selectedDatasetId, typeof selectedDatasetId)
+  console.log('questions:', SAMPLE_QUESTIONS[Number(selectedDatasetId)])
+
   return (
     <Page>
       <Header>
@@ -138,7 +141,7 @@ function Dashboard() {
         <PromptInput
           onSubmit={handleSubmit}
           isLoading={isLoading}
-          sampleQuestions={SAMPLE_QUESTIONS[selectedDatasetId] || []}
+          sampleQuestions={SAMPLE_QUESTIONS[Number(selectedDatasetId)] || []}
         />
         {error && <ErrorBanner>⚠ {error}</ErrorBanner>}
       </Card>
