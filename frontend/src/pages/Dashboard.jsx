@@ -6,19 +6,19 @@ import ResultPanel from '../components/ResultPanel'
 import api from '../services/api'
 
 const SAMPLE_QUESTIONS = {
-  34: [
+  40: [
     'Show me a bar chart of sales by region',
     'What were the top 5 products by revenue?',
     'Line chart of monthly sales trends',
     'Which region had the lowest Q4 performance?',
   ],
-  35: [
+  41: [
     'Show me daily website traffic as a line chart',
     'What are the top 5 traffic sources?',
     'Bar chart of bounce rate by page',
     'Which pages had the highest conversion rate?',
   ],
-  36: [
+  42: [
     'Show me headcount by department as a bar chart',
     'What is the average salary by role?',
     'Pie chart of employee tenure distribution',
